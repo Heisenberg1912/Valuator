@@ -155,7 +155,8 @@ export function AuthModal({ isOpen, onClose, defaultMode = "login", onLogin, onR
                     value={formData.accessCode}
                     onChange={handleChange}
                     required
-                    className="w-full h-14 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black px-4 font-mono text-sm text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-white transition-all shadow-inner"
+                    className="w-full h-14 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-black px-4 text-sm text-zinc-900 dark:text-white outline-none focus:border-zinc-900 dark:focus:border-white transition-all shadow-inner"
+
                     placeholder="XXXX-XXXX-XXXX"
                     autoFocus
                   />

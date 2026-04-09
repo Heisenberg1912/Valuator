@@ -5,6 +5,9 @@ const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["var(--font-montserrat)", "Montserrat", "sans-serif"],
+      },
       boxShadow: {
         soft: "0 10px 30px rgba(0,0,0,0.06)",
         glow: "0 0 20px rgba(255, 255, 255, 0.15)",
