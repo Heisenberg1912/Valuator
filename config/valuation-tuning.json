@@ -162,6 +162,11 @@
   "locationSignals": {
     "ultraPrime": [
       "south mumbai",
+      "altamount road",
+      "cumballa hill",
+      "malabar hill",
+      "pedder road",
+      "nepean sea road",
       "manhattan",
       "new york",
       "london",
@@ -172,7 +177,11 @@
       "zurich",
       "geneva",
       "paris",
-      "monaco"
+      "monaco",
+      "beverly hills",
+      "mayfair",
+      "knightsbridge",
+      "palm jumeirah"
     ],
     "prime": [
       "mumbai",
@@ -839,7 +848,12 @@
         "luxury branded residences",
         "branded residences",
         "ultra luxury residence",
-        "antilia"
+        "antilia",
+        "private skyscraper",
+        "ultra-luxury",
+        "ultra luxury",
+        "billionaire residence",
+        "private tower"
       ]
     },
     "Data Centers": {

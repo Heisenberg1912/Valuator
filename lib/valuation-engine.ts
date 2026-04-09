@@ -33,6 +33,16 @@ interface CategoryRow {
   Sustainability: string;
 }
 
+interface AiValuation {
+  estimated_property_value_usd: number;
+  estimated_land_value_usd: number;
+  estimated_built_area_sqm: number;
+  estimated_land_area_sqm: number;
+  estimated_price_per_sqm_usd: number;
+  valuation_reasoning: string;
+  location_identified: string;
+}
+
 interface ValuationInput {
   projectType: string;
   scale: string;
@@ -44,6 +54,7 @@ interface ValuationInput {
   geoStatus: "exif" | "gps" | "manual" | "denied" | "none";
   categoryRow: CategoryRow | null;
   geoFactors?: GeoMarketFactors;
+  aiValuation?: AiValuation;
 }
 
 interface ValuationResult {
@@ -102,7 +113,7 @@ function locationTier(location: string): "ultraPrime" | "prime" | "budget" | "st
 
 function locationMultiplier(tier: "ultraPrime" | "prime" | "budget" | "standard"): number {
   switch (tier) {
-    case "ultraPrime": return 2.8;
+    case "ultraPrime": return 3.5;
     case "prime": return 1.6;
     case "budget": return 0.55;
     default: return 1.0;
@@ -126,7 +137,8 @@ export function computeValuation(input: ValuationInput): ValuationResult {
     location,
     geoStatus,
     categoryRow,
-    geoFactors
+    geoFactors,
+    aiValuation
   } = input;
 
   const warnings: string[] = [];
@@ -144,54 +156,83 @@ export function computeValuation(input: ValuationInput): ValuationResult {
   const resaleValuePct = geoFactors?.resale_value_percent ?? 0;
   const roiPct = geoFactors?.investment_roi_percent ?? 0;
 
-  // Built-up area
+  const isCompleted = status === "Completed" || stageLabel === "Completed";
+  const completionFactors = tuning.completionByStage as Record<string, number>;
+  const completionFactor = completionFactors[stageLabel] ?? (progressValue / 100);
+
+  // --- AI-anchored valuation (primary source when available) ---
+  const hasAiValuation = aiValuation &&
+    aiValuation.estimated_property_value_usd > 0 &&
+    aiValuation.estimated_land_value_usd > 0;
+
+  // --- Table-based valuation (fallback / cross-check) ---
   const areaDefaults = tuning.builtAreaSqmDefaults as Record<string, Record<string, number>>;
   const classDefaults = areaDefaults[marketClass] ?? areaDefaults["Residential"];
-  const builtArea = classDefaults[scaleKey] ?? classDefaults["Low-rise"] ?? 110;
+  const tableBuiltArea = classDefaults[scaleKey] ?? classDefaults["Low-rise"] ?? 110;
+  const builtArea = (hasAiValuation && aiValuation.estimated_built_area_sqm > 0)
+    ? aiValuation.estimated_built_area_sqm
+    : tableBuiltArea;
 
-  // Unit rate selection
   const band = geoFactors ? densityBand(geoFactors.population_density) : "medium";
   const unitRates = (tuning.unitRatesUsdPerSqm as Record<string, Record<string, number>>)[marketClass];
   let unitRate = unitRates ? (unitRates[band] ?? unitRates["medium"] ?? 1100) : 1100;
 
-  // Location adjustments
-  const locTier = location ? locationTier(location) : "standard";
+  // Location adjustments — check user input, AI location_identified, AND geo context
+  const locationSources = [location ?? ""];
+  if (hasAiValuation) locationSources.push(aiValuation.location_identified);
+  if (geoFactors) {
+    locationSources.push(geoFactors.terrain, geoFactors.master_plan_zone,
+      geoFactors.policy_posture, geoFactors.comparable_activity);
+  }
+  const combinedLocation = locationSources.join(" ");
+  const locTier = locationTier(combinedLocation);
   const locMult = locationMultiplier(locTier);
   unitRate *= locMult;
 
-  // Typology anchor blending: blend unit rate with typology-specific base/max
   const typoMid = (typoRates.base + typoRates.max) / 2;
   unitRate = unitRate * 0.6 + typoMid * 0.4;
 
-  // Gross property value (completed)
-  let grossPropertyValue = builtArea * unitRate;
-
-  // Completion factor
-  const completionFactors = tuning.completionByStage as Record<string, number>;
-  const completionFactor = completionFactors[stageLabel] ?? (progressValue / 100);
-  const isCompleted = status === "Completed" || stageLabel === "Completed";
-
-  // Land value
+  // Table-based gross values
+  const tableGrossProperty = builtArea * unitRate;
   const landAreaMult = (tuning.landAreaMultiplierByScale as Record<string, number>)[scaleKey] ?? 1.5;
   const landRateMult = (tuning.landRateMultiplierByType as Record<string, number>)[marketClass] ?? 0.5;
-  const landArea = builtArea * landAreaMult;
-  const landUnitRate = unitRate * landRateMult;
-  const grossLandValue = landArea * landUnitRate;
+  const landArea = (hasAiValuation && aiValuation.estimated_land_area_sqm > 0)
+    ? aiValuation.estimated_land_area_sqm
+    : builtArea * landAreaMult;
+  const tableGrossLand = landArea * unitRate * landRateMult;
+
+  // Blend AI and table values: AI gets 70% weight when available, table 30%
+  let grossPropertyValue: number;
+  let grossLandValue: number;
+  if (hasAiValuation) {
+    grossPropertyValue = aiValuation.estimated_property_value_usd * 0.7 + tableGrossProperty * 0.3;
+    grossLandValue = aiValuation.estimated_land_value_usd * 0.7 + tableGrossLand * 0.3;
+  } else {
+    grossPropertyValue = tableGrossProperty;
+    grossLandValue = tableGrossLand;
+  }
 
   // Confidence calculation
   const conf = tuning.confidence;
   let confidence = conf.base;
 
-  if (!location) {
+  // AI valuation boosts confidence
+  if (hasAiValuation) {
+    confidence += 12;
+  }
+
+  if (!location && !hasAiValuation) {
     confidence -= conf.missingLocationPenalty;
     warnings.push("No location provided — wider valuation band.");
+  } else if (!location && hasAiValuation) {
+    confidence -= Math.round(conf.missingLocationPenalty * 0.3);
   }
   if (geoStatus === "none" || geoStatus === "denied") {
-    confidence -= conf.missingGpsPenalty;
+    confidence -= hasAiValuation ? Math.round(conf.missingGpsPenalty * 0.4) : conf.missingGpsPenalty;
   }
   if (comparableCount === 0) {
-    confidence -= conf.noComparablesPenalty;
-    warnings.push("No comparable properties found — estimates are speculative.");
+    confidence -= hasAiValuation ? Math.round(conf.noComparablesPenalty * 0.4) : conf.noComparablesPenalty;
+    if (!hasAiValuation) warnings.push("No comparable properties found — estimates are speculative.");
   } else if (comparableCount < tuning.limits.minComparablesForAnchor) {
     confidence -= conf.fewComparablesPenalty;
     warnings.push("Few comparables — valuation band is wider.");
@@ -199,7 +240,6 @@ export function computeValuation(input: ValuationInput): ValuationResult {
     confidence += conf.strongComparablesBonus;
   }
 
-  // Zone / hazard / policy adjustments
   if (geoFactors) {
     const terrain = geoFactors.terrain.toLowerCase();
     const soil = geoFactors.soil_condition.toLowerCase();
@@ -242,7 +282,7 @@ export function computeValuation(input: ValuationInput): ValuationResult {
   let spread = spreadForConfidence(confidence);
   const haircuts = tuning.haircuts;
 
-  if (comparableCount === 0) {
+  if (comparableCount === 0 && !hasAiValuation) {
     spread += haircuts.fallbackNoCompsExtraSpread;
   }
   if (warnings.some((w) => w.toLowerCase().includes("hazard"))) {

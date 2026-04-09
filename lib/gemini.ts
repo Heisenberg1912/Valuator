@@ -5,8 +5,9 @@ const apiKey = mustGetEnv("GEMINI_API_KEY");
 
 export const genAI = new GoogleGenerativeAI(apiKey);
 
-const DEFAULT_VISION_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.5-flash";
+const DEFAULT_VISION_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-pro-preview";
 const FALLBACK_VISION_MODELS = [
+  "gemini-3.1-pro-preview",
   "gemini-2.5-flash",
   "gemini-2.5-flash-lite",
   "gemini-2.0-flash",

@@ -54,6 +54,24 @@ export const BaseResultSchema = z.object({
     resale_value_percent: z.number().min(0).max(220),
     investment_roi_percent: z.number().min(-50).max(120)
   }),
+  ai_valuation: z.object({
+    estimated_property_value_usd: z.number().nonnegative(),
+    estimated_land_value_usd: z.number().nonnegative(),
+    estimated_built_area_sqm: z.number().nonnegative(),
+    estimated_land_area_sqm: z.number().nonnegative(),
+    estimated_price_per_sqm_usd: z.number().nonnegative(),
+    valuation_reasoning: z.string().min(1),
+    location_identified: z.string().min(1)
+  }).optional(),
+  famous_building: z.object({
+    is_famous: z.boolean(),
+    name: z.string().optional(),
+    city: z.string().optional(),
+    country: z.string().optional(),
+    year_built: z.string().optional(),
+    architect: z.string().optional(),
+    significance: z.string().optional()
+  }).optional(),
   notes: z.array(z.string()).max(4).default([])
 });
 

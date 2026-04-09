@@ -105,6 +105,24 @@ export const GEMINI_TUNING = {
     "resale_value_percent": number,
     "investment_roi_percent": number
   },
+  "ai_valuation": {
+    "estimated_property_value_usd": number,
+    "estimated_land_value_usd": number,
+    "estimated_built_area_sqm": number,
+    "estimated_land_area_sqm": number,
+    "estimated_price_per_sqm_usd": number,
+    "valuation_reasoning": string,
+    "location_identified": string
+  },
+  "famous_building": {
+    "is_famous": boolean,
+    "name": string (optional),
+    "city": string (optional),
+    "country": string (optional),
+    "year_built": string (optional),
+    "architect": string (optional),
+    "significance": string (optional)
+  } | null,
   "notes": string[]
 }`,
   baseRules: [
@@ -119,7 +137,10 @@ export const GEMINI_TUNING = {
     "city_growth_5y_percent, property_growth_percent, land_growth_percent, resale_value_percent, investment_roi_percent must be realistic percentages.",
     "property_age_years should be inferred conservatively from visible condition and typology.",
     "Arrays must contain only the allowed stage values, max 5 items each, no duplicates.",
-    "Use conservative, plausible estimates. Put assumptions in notes."
+    "Use conservative, plausible estimates. Put assumptions in notes.",
+    "ai_valuation is CRITICAL: You MUST provide real-world valuation estimates based on your knowledge of actual property markets, comparable sales, and location-specific pricing. estimated_property_value_usd is the total current market value of the property in USD. estimated_land_value_usd is the land-only value. estimated_built_area_sqm is total built-up area in square meters. estimated_land_area_sqm is total land/plot area. estimated_price_per_sqm_usd is the prevailing rate per sqm for this type and location. valuation_reasoning must explain what drove the estimate (comps, market data, known sale prices, location premium). location_identified must state the specific city, neighborhood, or area you infer from the image and metadata.",
+    "For ai_valuation: Use REAL market data. If you recognize the building (e.g. Antilia = ~$2B, Burj Khalifa apartments = $5k-$10k/sqft, Empire State Building = ~$2.5B), use known values. For unknown buildings, estimate from local market rates for the identified location and typology. Never default to generic numbers — always reason from the specific location and building type you see.",
+    "famous_building detection: If the image shows a famous, iconic, or historically significant building or landmark (e.g. Taj Mahal, Empire State Building, Burj Khalifa, Colosseum, Sydney Opera House, etc.), set famous_building.is_famous to true and fill in the name, city, country, year_built, architect, and a one-line significance. If the building is not a recognized famous landmark, set famous_building to { \"is_famous\": false }."
   ],
   advancedSchema: `{
   "progress_vs_ideal": "Ahead" | "On Track" | "Delayed",

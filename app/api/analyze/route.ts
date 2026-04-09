@@ -248,6 +248,28 @@ function sanitizeBase(
       resale_value_percent: defaultResale,
       investment_roi_percent: defaultRoi
     },
+    ai_valuation: input.ai_valuation && typeof input.ai_valuation === "object"
+      ? {
+          estimated_property_value_usd: Math.max(0, Number(input.ai_valuation.estimated_property_value_usd) || 0),
+          estimated_land_value_usd: Math.max(0, Number(input.ai_valuation.estimated_land_value_usd) || 0),
+          estimated_built_area_sqm: Math.max(0, Number(input.ai_valuation.estimated_built_area_sqm) || 0),
+          estimated_land_area_sqm: Math.max(0, Number(input.ai_valuation.estimated_land_area_sqm) || 0),
+          estimated_price_per_sqm_usd: Math.max(0, Number(input.ai_valuation.estimated_price_per_sqm_usd) || 0),
+          valuation_reasoning: typeof input.ai_valuation.valuation_reasoning === "string" ? input.ai_valuation.valuation_reasoning : "AI estimate",
+          location_identified: typeof input.ai_valuation.location_identified === "string" ? input.ai_valuation.location_identified : "Unknown"
+        }
+      : undefined,
+    famous_building: input.famous_building && typeof input.famous_building === "object" && input.famous_building.is_famous === true
+      ? {
+          is_famous: true,
+          name: typeof input.famous_building.name === "string" ? input.famous_building.name : undefined,
+          city: typeof input.famous_building.city === "string" ? input.famous_building.city : undefined,
+          country: typeof input.famous_building.country === "string" ? input.famous_building.country : undefined,
+          year_built: typeof input.famous_building.year_built === "string" ? input.famous_building.year_built : undefined,
+          architect: typeof input.famous_building.architect === "string" ? input.famous_building.architect : undefined,
+          significance: typeof input.famous_building.significance === "string" ? input.famous_building.significance : undefined
+        }
+      : undefined,
     notes: Array.isArray(input.notes) ? input.notes.slice(0, 4) : []
   };
 }

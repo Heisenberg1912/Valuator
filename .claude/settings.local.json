@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(curl -s \"https://generativelanguage.googleapis.com/v1beta/models?key=AIzaSyBER7bUT1m9dz0fi1FkeCzW9WIKEycq2Js\")",
+      "Bash(python3 -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(m['name']\\) for m in data.get\\('models',[]\\) if 'gemini' in m.get\\('name',''\\).lower\\(\\) and 'generateContent' in m.get\\('supportedGenerationMethods',[]\\)]\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{const j=JSON.parse\\(d\\);\\(j.models||[]\\).filter\\(m=>m.name.includes\\('gemini'\\)&&\\(m.supportedGenerationMethods||[]\\).includes\\('generateContent'\\)\\).forEach\\(m=>console.log\\(m.name\\)\\)}\\)\")",
+      "Bash(node -e \"let d='';process.stdin.on\\('data',c=>d+=c\\);process.stdin.on\\('end',\\(\\)=>{try{const j=JSON.parse\\(d\\);console.log\\(JSON.stringify\\(j\\).substring\\(0,200\\)\\)}catch\\(e\\){console.log\\(d.substring\\(0,500\\)\\)}}\\)\")",
+      "WebSearch",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)"
+    ]
+  }
+}

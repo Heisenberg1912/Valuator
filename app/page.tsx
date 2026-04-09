@@ -1,5 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -47,6 +48,24 @@ type BaseResult = {
     resale_value_percent: number;
     investment_roi_percent: number;
   };
+  ai_valuation?: {
+    estimated_property_value_usd: number;
+    estimated_land_value_usd: number;
+    estimated_built_area_sqm: number;
+    estimated_land_area_sqm: number;
+    estimated_price_per_sqm_usd: number;
+    valuation_reasoning: string;
+    location_identified: string;
+  } | null;
+  famous_building?: {
+    is_famous: boolean;
+    name?: string;
+    city?: string;
+    country?: string;
+    year_built?: string;
+    architect?: string;
+    significance?: string;
+  } | null;
   notes: string[];
 };
 
@@ -580,7 +599,7 @@ const LANGUAGE_LABELS: Record<Lang, Record<string, string>> = {
     climateAssumed: "ಸಾಮಾನ್ಯ ಹವಾಮಾನ ಅಂದಾಜು",
     weatherSensitive: "ಹವಾಮಾನ ಸಂವೇದನಾಶೀಲ ಹಂತ",
     structuralOngoing: "ಸ್ಟ್ರಕ್ಚರ್ ಕೆಲಸ ನಡೆಯುತ್ತಿದೆ",
-    pacingApplied: "ಮಿಡ್-ರೈಸ್ ಬೆಂಚ್ಮಾರ್ಕ್ ಅನ್ವಯಿಸಲಾಗಿದೆ",
+    pacingApplied: "ಮಿಡ್-ರೈಸ್ ಬೆಂಚ್ಮಾರ್ಕ್ ಅನ್ವయಿಸಲಾಗಿದೆ",
     currency: "ಕರೆನ್ಸಿ",
     language: "ಭಾಷೆ",
     light: "ಲೈಟ್",
@@ -630,7 +649,7 @@ const LANGUAGE_LABELS: Record<Lang, Record<string, string>> = {
     confidence: "വിശ്വാസം",
     budgetLeft: "ബാക്കി ബജറ്റ്",
     budgetUsed: "ഉപയോഗിച്ച ബജറ്റ്",
-    landVal: "ഭൂമി മൂല്യം",
+    landVal: "ഭూമി മൂല്യം",
     projectVal: "പ്രോജക്റ്റ് മൂല്യം",
     propertyVal: "സ്വത്ത് മൂല്യം",
     awaitingBase: "ബേസ് വിശകലനം കാത്തിരിക്കുന്നു",
@@ -642,10 +661,10 @@ const LANGUAGE_LABELS: Record<Lang, Record<string, string>> = {
     weatherSensitive: "കാലാവസ്ഥയ്ക്ക് സെൻസിറ്റീവ് ഘട്ടം",
     structuralOngoing: "സ്ട്രക്ചർ ജോലി നടക്കുന്നു",
     pacingApplied: "മിഡ്-റൈസ് ബെഞ്ച്മാർക്ക് പ്രയോഗിച്ചു",
-    currency: "കറൻസി",
+    currency: "കറన్સી",
     language: "ഭാഷ",
     light: "ലൈറ്റ്",
-    dark: "ഡാർക്ക്",
+    dark: "ಡാർക്ക്",
     highContrast: "HC",
     gps: "GPS",
     exif: "EXIF",
@@ -786,7 +805,7 @@ const LANGUAGE_LABELS: Record<Lang, Record<string, string>> = {
     stagesLeft: "ਬਾਕੀ ਪੜਾਅ",
     singleUse: "ਇੱਕ ਵਾਰ ਵਰਤੋਂ",
     stored: "ਸੇਵ ਕੀਤਾ",
-    valuationInsights: "ਮੁੱਲਾਂਕਨ + ਇਨਸਾਈਟਸ",
+    valuationInsights: "ਮੁੱਲਾਂਕਨ + ਇਨਸਾਈਟസ്",
     signals: "ਸਿਗਨਲ",
     progressVsIdeal: "ਆਦਰਸ਼ ਨਾਲ ਤੁਲਨਾ",
     timelineDrift: "ਟਾਈਮਲਾਈਨ ਡ੍ਰਿਫਟ",
@@ -825,7 +844,7 @@ const LANGUAGE_LABELS: Record<Lang, Record<string, string>> = {
     weatherSensitive: "ਮੌਸਮ ਸੰਵੇਦਨਸ਼ੀਲ ਪੜਾਅ",
     structuralOngoing: "ਸਟਰਕਚਰ ਕੰਮ ਚੱਲ ਰਿਹਾ",
     pacingApplied: "ਮਿਡ-ਰਾਈਜ਼ ਬੈਂਚਮਾਰਕ ਲਾਗੂ",
-    currency: "ਮੁਦਰਾ",
+    currency: "ਮੁਦరా",
     language: "ਭਾਸ਼ਾ",
     light: "ਲਾਈਟ",
     dark: "ਡਾਰਕ",
@@ -1065,8 +1084,35 @@ function normalizeStage(value?: string, status?: BaseResult["project_status"]): 
   return "Structure";
 }
 
-function Label({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[color:var(--muted)]">{children}</div>;
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    },
+  },
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      duration: 1.2,
+      ease: [0.16, 1, 0.3, 1],
+    },
+  },
+};
+
+function Label({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`text-[9px] font-black uppercase tracking-[0.3em] text-zinc-400 dark:text-zinc-500 ${className}`}>
+      {children}
+    </div>
+  );
 }
 
 function Info({ text }: { text: string }) {
@@ -1079,36 +1125,71 @@ function Info({ text }: { text: string }) {
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
       onBlur={() => setOpen(false)}
-      className="relative ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-[color:var(--line)] text-[10px] font-bold text-[color:var(--muted)]"
+      className="relative ml-2 inline-flex h-4 w-4 items-center justify-center rounded-full border border-zinc-200 dark:border-zinc-800 text-[10px] font-bold text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
       aria-label="Info"
     >
-      i
-      <span
-        className={`pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-52 -translate-x-1/2 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] p-2 text-[10px] font-semibold text-[color:var(--text)] shadow-lg transition ${
-          open ? "opacity-100" : "opacity-0"
-        }`}
-      >
-        {text}
-      </span>
+      ?
+      <AnimatePresence>
+        {open && (
+          <motion.span
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-3 w-64 -translate-x-1/2 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl p-4 text-[11px] font-medium leading-relaxed text-zinc-600 dark:text-zinc-300 shadow-2xl"
+          >
+            {text}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </button>
   );
 }
 
-function StatCard({ label, value, tooltip, tag }: { label: string; value: React.ReactNode; tooltip?: string; tag?: React.ReactNode }) {
-  const valueText = typeof value === "string" ? value : "";
-  const compactValueClass = valueText.length > 34 ? "text-[clamp(9px,1vw,13px)]" : "text-[clamp(10px,1.15vw,15px)]";
+function StatCard({ label, value, tooltip, tag, className }: { label: string; value: React.ReactNode; tooltip?: string; tag?: React.ReactNode; className?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = typeof value === 'string' && value.length > 24;
+  
   return (
-    <div className="min-w-0 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 py-4 sm:px-5">
-      <div className="flex min-w-0 items-center gap-1 break-words text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+    <motion.div 
+      layout
+      variants={itemVariants}
+      onClick={() => isLong && setExpanded(!expanded)}
+      whileHover={{ y: -4, scale: 1.01 }}
+      whileTap={{ scale: 0.98 }}
+      className={`group relative flex flex-col rounded-[24px] border border-zinc-200/50 dark:border-zinc-800/50 bg-white/40 dark:bg-zinc-900/40 p-5 backdrop-blur-md transition-all hover:border-zinc-400 dark:hover:border-zinc-600 hover:shadow-2xl hover:shadow-zinc-500/10 dark:hover:shadow-white/5 ${isLong ? 'cursor-pointer' : ''} ${className}`}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent dark:from-white/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-[24px]" />
+      <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500 group-hover:text-zinc-900 dark:group-hover:text-zinc-100 transition-colors">
         {label}
         {tooltip ? <Info text={tooltip} /> : null}
       </div>
-      <div
-        className={`mt-2 max-w-full whitespace-normal break-words [overflow-wrap:break-word] [word-break:normal] ${compactValueClass} font-bold leading-tight text-[color:var(--text)]`}
-      >
+      <div className={`mt-2 font-black tracking-tight text-zinc-900 dark:text-white leading-[1.2] transition-all duration-500 ${isLong && !expanded ? 'text-sm line-clamp-2' : isLong ? 'text-sm' : 'text-xl'}`}>
         {value}
       </div>
-      {tag ? <div className="mt-2 whitespace-normal break-words [overflow-wrap:break-word] [word-break:normal]">{tag}</div> : null}
+      {isLong && (
+        <div className="mt-2 text-[8px] font-black uppercase tracking-widest text-zinc-400 group-hover:text-zinc-600 dark:group-hover:text-zinc-300">
+          {expanded ? 'Collapse' : 'Tap to Expand'}
+        </div>
+      )}
+      {tag ? <div className="mt-auto pt-3">{tag}</div> : null}
+    </motion.div>
+  );
+}
+
+function MatrixEntry({ label, value }: { label: string; value: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = value.length > 20;
+
+  return (
+    <div 
+      onClick={() => isLong && setExpanded(!expanded)}
+      className={`min-w-0 ${isLong ? 'cursor-pointer' : ''}`}
+    >
+      <div className="text-[8px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-1.5">{label}</div>
+      <div className={`text-[11px] font-bold text-zinc-900 dark:text-white leading-tight transition-all duration-300 ${isLong && !expanded ? 'line-clamp-1' : ''}`}>
+        {value}
+      </div>
+      {isLong && !expanded && <div className="text-[7px] font-black uppercase text-zinc-300 mt-1">More</div>}
     </div>
   );
 }
@@ -1153,6 +1234,13 @@ export default function Page() {
   // Initialize auth from localStorage
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const savedTheme = localStorage.getItem("theme");
+    const savedLang = localStorage.getItem("lang");
+    const savedCurrency = localStorage.getItem("currency");
+    if (savedTheme === "dark" || savedTheme === "hc" || savedTheme === "light") setTheme(savedTheme as any);
+    if (savedLang) setLang(savedLang as any);
+    if (savedCurrency) setCurrency(savedCurrency as any);
+    
     const savedToken = localStorage.getItem("vitruvi_token");
     const savedCode = localStorage.getItem("vitruvi_access_code");
     if (savedToken) setAuthToken(savedToken);
@@ -1196,55 +1284,13 @@ export default function Page() {
   }, [authToken, accessCode]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const savedTheme = window.localStorage.getItem("theme");
-    const savedLang = window.localStorage.getItem("lang");
-    const savedCurrency = window.localStorage.getItem("currency");
-    if (savedTheme === "dark" || savedTheme === "hc" || savedTheme === "light") setTheme(savedTheme);
-    if (savedLang && LANGUAGE_OPTIONS.some((option) => option.value === savedLang)) {
-      setLang(savedLang as Lang);
-    }
-    if (
-      savedCurrency &&
-      [
-        "USD",
-        "INR",
-        "AED",
-        "EUR",
-        "GBP",
-        "SGD",
-        "AUD",
-        "CAD",
-        "NZD",
-        "CHF",
-        "SEK",
-        "NOK",
-        "DKK",
-        "ZAR",
-        "JPY",
-        "CNY",
-        "HKD",
-        "SAR",
-        "QAR",
-        "KRW",
-        "THB",
-        "MYR",
-        "IDR",
-        "PHP",
-        "BRL",
-        "MXN",
-        "PLN",
-        "CZK",
-        "TRY"
-      ].includes(savedCurrency)
-    ) {
-      setCurrency(savedCurrency as Currency);
-    }
-  }, []);
-
-  useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.dataset.theme = theme;
+    if (theme === "dark" || theme === "hc") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
     window.localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -1262,15 +1308,15 @@ export default function Page() {
         { label: "Category", value: selectedCategoryRow.Category },
         { label: "Typology", value: selectedCategoryRow.Typology },
         { label: "Style", value: selectedCategoryRow.Style },
-        { label: "Climate Adaptability", value: selectedCategoryRow.ClimateAdaptability },
+        { label: "Climate", value: selectedCategoryRow.ClimateAdaptability },
         { label: "Terrain", value: selectedCategoryRow.Terrain },
-        { label: "Soil Type", value: selectedCategoryRow.SoilType },
-        { label: "Material Used", value: selectedCategoryRow.MaterialUsed },
-        { label: "Interior Layout", value: selectedCategoryRow.InteriorLayout },
-        { label: "Roof Type", value: selectedCategoryRow.RoofType },
+        { label: "Soil", value: selectedCategoryRow.SoilType },
+        { label: "Material", value: selectedCategoryRow.MaterialUsed },
+        { label: "Interior", value: selectedCategoryRow.InteriorLayout },
+        { label: "Roof", value: selectedCategoryRow.RoofType },
         { label: "Exterior", value: selectedCategoryRow.Exterior },
-        { label: "Additional Features", value: selectedCategoryRow.AdditionalFeatures },
-        { label: "Sustainability", value: selectedCategoryRow.Sustainability }
+        { label: "Features", value: selectedCategoryRow.AdditionalFeatures },
+        { label: "Eco", value: selectedCategoryRow.Sustainability }
       ]
     : [];
 
@@ -1294,7 +1340,7 @@ export default function Page() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [apiFetch]);
 
   const t = useCallback(
     (key: string) => {
@@ -1528,7 +1574,8 @@ export default function Page() {
     note: meta.note,
     geoStatus,
     categoryRow: selectedCategoryRow,
-    geoFactors
+    geoFactors,
+    aiValuation: base?.ai_valuation ?? undefined
   });
   const comparableCount = valuation.metrics.comparableCount;
   const cityGrowthPct = valuation.metrics.cityGrowthPct;
@@ -1711,8 +1758,8 @@ export default function Page() {
     [lang, answerTranslations]
   );
 
-  const pendingValue = <span className="text-[color:var(--muted)]">{t("pending")}</span>;
-  const premium = (value: React.ReactNode) => (paywalled ? <span className="text-[color:var(--muted)]">Locked</span> : value);
+  const pendingValue = <span className="text-zinc-300 dark:text-zinc-600 italic">Pending</span>;
+  const premium = (value: React.ReactNode) => (paywalled ? <span className="text-zinc-400 dark:text-zinc-600 italic">Locked</span> : value);
 
   const fxRate = rates?.rates?.[currency];
   const fxInfo =
@@ -1725,484 +1772,305 @@ export default function Page() {
   const iCopy = (key: string, fallback: string) => microcopy[key] ?? fallback;
 
   return (
-    <div className="min-h-screen">
-      <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute -top-24 right-10 h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,var(--glow-1),transparent_70%)]" />
-        <div className="absolute bottom-[-120px] left-[-80px] h-[420px] w-[420px] rounded-full bg-[radial-gradient(circle_at_center,var(--glow-2),transparent_70%)]" />
+    <div className="min-h-screen selection:bg-zinc-900 selection:text-white dark:selection:bg-white dark:selection:text-zinc-900">
+      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div className="absolute -top-[10%] -left-[10%] h-[40%] w-[40%] rounded-full bg-zinc-400/10 blur-[120px] dark:bg-zinc-600/5" />
+        <div className="absolute top-[20%] -right-[10%] h-[50%] w-[50%] rounded-full bg-emerald-400/10 blur-[120px] dark:bg-emerald-600/5" />
+        <div className="absolute -bottom-[10%] left-[20%] h-[40%] w-[40%] rounded-full bg-blue-400/10 blur-[120px] dark:bg-blue-600/5" />
       </div>
 
-      <header className="mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-4 px-4 pt-8 lg:grid-cols-[1fr_auto_1fr]">
-        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-start">
-          {errorShort ? <Badge>{errorShort}</Badge> : null}
-          {usage ? <Badge>{usage.paid ? "Pro" : `${Math.max(0, 3 - usage.freeUsed)}/3`}</Badge> : null}
-        </div>
-        <div className="text-center">
-          <div className="text-2xl font-black tracking-tight text-[color:var(--text)]">Valuator by Builtattic</div>
-          <div className="text-xs font-semibold uppercase tracking-[0.28em] text-[color:var(--muted)]">Valuation Analysis</div>
-          <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">{t("engine")}</div>
-        </div>
-        <div className="flex flex-wrap items-center justify-center gap-2 lg:justify-end">
-          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] px-2 py-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">{t("language")}</span>
-            <select
-              value={lang}
-              onChange={(e) => setLang(e.target.value as Lang)}
-              className="bg-transparent text-xs font-semibold text-[color:var(--text)] outline-none"
-            >
-              {LANGUAGE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+      <motion.header 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
+        className="mx-auto flex max-w-[1600px] items-center justify-between px-8 pt-10"
+      >
+        <div className="flex items-center gap-6">
+          <div className="group cursor-default">
+            <h1 className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white transition-all">Valuator</h1>
+            <div className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500">Builtattic</div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border border-[color:var(--line)] bg-[color:var(--card)] px-2 py-1">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">{t("currency")}</span>
-            <Info text={fxInfo} />
-            <select
-              value={currency}
-              onChange={(e) => setCurrency(e.target.value as Currency)}
-              className="bg-transparent text-xs font-semibold text-[color:var(--text)] outline-none"
-            >
-              {Object.values(CURRENCY_LABELS).map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.name} ({item.code})
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant={theme === "light" ? "primary" : "outline"} onClick={() => setTheme("light")} className="h-9 px-2 text-xs">
-              {t("light")}
-            </Button>
-            <Button variant={theme === "dark" ? "primary" : "outline"} onClick={() => setTheme("dark")} className="h-9 px-2 text-xs">
-              {t("dark")}
-            </Button>
-            <Button variant={theme === "hc" ? "primary" : "outline"} onClick={() => setTheme("hc")} className="h-9 px-2 text-xs">
-              {t("highContrast")}
-            </Button>
-          </div>
-          {authUser ? (
-            <>
-              <Badge>{authUser.name || authUser.email.split("@")[0]}</Badge>
-              {accessCode && <Badge>Code Active</Badge>}
-              <Button variant="outline" onClick={signOut} className="h-9 px-3 text-xs">
-                Sign Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button onClick={() => openAuthModal("login")} className="h-9 px-3 text-xs">
-                Sign In
-              </Button>
-              <Button variant="outline" onClick={() => openAuthModal("register")} className="h-9 px-3 text-xs">
-                Register
-              </Button>
-              <Button variant="outline" onClick={() => openAuthModal("accessCode")} className="h-9 px-3 text-xs">
-                Access Code
-              </Button>
-            </>
+          {errorShort && (
+            <Badge variant="outline" className="border-red-500/30 text-red-500 bg-red-500/5 backdrop-blur-md px-3 py-1">
+              {errorShort}
+            </Badge>
           )}
-          <Button variant="primary" onClick={upgrade} className="h-9 px-3 text-xs">
-            Upgrade
-          </Button>
         </div>
-      </header>
 
-      <main className="mx-auto mt-6 max-w-[1400px] px-4 pb-12">
-        {error ? (
-          <div className="mb-4 rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 py-3">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[color:var(--muted)]">Error</div>
-            <div className="mt-2 break-words text-xs font-semibold text-[color:var(--text)]">{error}</div>
-          </div>
-        ) : null}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_400px_1fr]">
-          <Card className="order-2 p-4 sm:p-5 lg:order-none">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Label>{t("constructionProgress")}</Label>
-                <Info text={iCopy("stage", "Means: current execution phase. Inputs: stage + progress. Assumption: latest image is current.")} />
-              </div>
-              <Badge>{status}</Badge>
+        <div className="flex items-center gap-4">
+          <div className="hidden items-center gap-4 lg:flex">
+            <div className="flex items-center gap-2 rounded-2xl border border-zinc-200/50 dark:border-zinc-800/50 bg-white/40 dark:bg-zinc-900/40 backdrop-blur-md px-4 py-2">
+              <span className="text-[9px] font-black uppercase tracking-widest text-zinc-400">{t("lang")}</span>
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value as Lang)}
+                className="bg-transparent text-xs font-black text-zinc-900 dark:text-zinc-100 outline-none"
+              >
+                {LANGUAGE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value} className="bg-white dark:bg-zinc-900">{o.label}</option>
+                ))}
+              </select>
             </div>
-
-            <div className="mt-4">
-              <div className="flex items-center gap-2">
-                <Label>Site Context</Label>
-                <Info text={iCopy("marketPerformance", "Means: context diagnostics. Inputs: geo + market factors. Assumption: metadata is current.")} />
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <StatCard
-                  label="Terrain / Soil"
-                  value={baseValid ? premium(`${geoFactors?.terrain ?? "-"} / ${geoFactors?.soil_condition ?? "-"}`) : pendingValue}
-                  tooltip={iCopy("terrainSoil", "Means: base construction risk. Inputs: terrain+soil. Assumption: no borelog provided.")}
-                />
-                <StatCard
-                  label="Climate / Density"
-                  value={baseValid ? premium(`${geoFactors?.climate_zone ?? "-"} / ${geoFactors?.population_density ?? "-"}`) : pendingValue}
-                  tooltip={iCopy("climateDensity", "Means: demand and execution pressure. Inputs: climate+density. Assumption: seasonality is typical.")}
-                />
-                <StatCard
-                  label="Master Plan Zone"
-                  value={baseValid ? premium(masterPlanZone) : pendingValue}
-                  tooltip={iCopy("masterPlanZone", "Means: allowed use and value ceiling. Inputs: zoning + project type. Assumption: current zoning holds.")}
-                />
-                <StatCard
-                  label="Political Leaning"
-                  value={baseValid ? premium(geoFactors?.policy_posture ?? "-") : pendingValue}
-                  tooltip={iCopy("politicalLeaning", "Means: approvals and demand bias. Inputs: policy posture. Assumption: policy stays stable.")}
-                />
-                <StatCard
-                  label="Comparable Activity"
-                  value={baseValid ? premium(`${geoFactors?.comparable_activity ?? "-"} (${Math.round(comparableCount)} comps)`) : pendingValue}
-                  tooltip={iCopy("comparableActivity", "Means: market anchor depth. Inputs: comparable count+activity. Assumption: comps are local.")}
-                />
-                <StatCard
-                  label="Typology"
-                  value={baseValid ? premium(selectedCategoryRow?.Typology ?? "-") : pendingValue}
-                  tooltip={iCopy("typology", "Means: asset class fit. Inputs: category matrix typology. Assumption: image classification is correct.")}
-                />
-                <StatCard
-                  label={t("stage")}
-                  value={baseValid ? premium(stageLabel) : pendingValue}
-                  tooltip={iCopy("stage", "Means: current execution phase. Inputs: stage + progress. Assumption: latest image is current.")}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center gap-2">
-                <Label>{t("insights")}</Label>
-                <Info text={iCopy("valuationPanel", "Means: valuation is range-based. Inputs: A-F weighted model. Assumption: no hidden legal defects.")} />
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 py-3">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">{trAnswer("If Purchasing")}</div>
-                  <ul className="mt-2 list-none space-y-2 pl-0">
-                    {buyInsights.slice(0, 4).map((item, i) => (
-                      <li key={`buy-insight-${i}`} className="whitespace-normal break-normal [overflow-wrap:break-word] text-[11px] font-semibold leading-snug text-[color:var(--text)]">
-                        {trAnswer(item)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] px-4 py-3">
-                  <div className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">{trAnswer("If Selling")}</div>
-                  <ul className="mt-2 list-none space-y-2 pl-0">
-                    {sellInsights.slice(0, 4).map((item, i) => (
-                      <li key={`sell-insight-${i}`} className="whitespace-normal break-normal [overflow-wrap:break-word] text-[11px] font-semibold leading-snug text-[color:var(--text)]">
-                        {trAnswer(item)}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </Card>
-
-          <div className="order-1 mx-auto flex w-full max-w-[400px] flex-col gap-4 lg:order-none lg:w-[400px] lg:max-w-none">
-            <Card className="flex flex-col items-center gap-2 p-4 sm:p-5 lg:h-[400px]">
-              <div className="text-center">
-                <Label>{t("capture")}</Label>
-                <div className="text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">{t("inputWindow")}</div>
-              </div>
-
-              <div className="relative h-[190px] w-[190px] overflow-hidden rounded-2xl border border-[color:var(--line)] bg-[color:var(--card)] sm:h-[210px] sm:w-[210px] lg:h-[210px] lg:w-[210px]">
-                {imageDataUrl ? (
-                  <img src={imageDataUrl} alt="Preview" className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-[color:var(--muted)]">Empty</div>
-                )}
-                <div className="pointer-events-none absolute inset-0 opacity-35 [background-image:linear-gradient(to_right,rgba(0,0,0,0.25)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.25)_1px,transparent_1px)] [background-size:33%_100%,100%_33%]" />
-                <div className="pointer-events-none absolute inset-2 rounded-xl border border-[color:var(--line)]" />
-              </div>
-
-              <div className="w-full max-w-[300px] space-y-1.5">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (browseInputRef.current) {
-                        browseInputRef.current.value = "";
-                        browseInputRef.current.click();
-                      }
-                    }}
-                    className="rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 py-1.5 text-center text-[11px] font-semibold text-[color:var(--text)] hover:bg-[color:var(--pill)]"
-                  >
-                    {t("browse")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (liveInputRef.current) {
-                        liveInputRef.current.value = "";
-                        liveInputRef.current.click();
-                      }
-                    }}
-                    className="rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 py-1.5 text-center text-[11px] font-semibold text-[color:var(--text)] hover:bg-[color:var(--pill)]"
-                  >
-                    {t("live")}
-                  </button>
-                </div>
-                <div className="grid grid-cols-1 items-center gap-2 sm:grid-cols-[1fr_auto_auto]">
-                  <input
-                    value={meta.location}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setMeta((s) => ({ ...s, location: value }));
-                      setGeoStatus(value ? "manual" : "none");
-                    }}
-                    placeholder={t("location")}
-                    list="city-list"
-                    autoComplete="address-level2"
-                    className="h-7 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 text-[10px] font-semibold text-[color:var(--text)] outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={requestGps}
-                    className="rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 py-1 text-[10px] font-semibold text-[color:var(--text)]"
-                  >
-                    {t("useGps")}
-                  </button>
-                  <Badge>
-                    {geoStatus === "exif"
-                      ? t("exif")
-                      : geoStatus === "gps"
-                        ? t("gps")
-                        : geoStatus === "manual"
-                          ? t("manual")
-                          : geoStatus === "denied"
-                            ? t("gpsOff")
-                            : t("noGps")}
-                  </Badge>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <select
-                    value={meta.projectType}
-                    onChange={(e) => setMeta((s) => ({ ...s, projectType: e.target.value }))}
-                    className="h-7 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 text-[9px] font-semibold text-[color:var(--text)] outline-none"
-                  >
-                    <option>Residential</option>
-                    <option>Commercial</option>
-                    <option>Industrial</option>
-                    <option>Mixed-use</option>
-                    <option>Infrastructure</option>
-                  </select>
-                  <select
-                    value={meta.scale}
-                    onChange={(e) => setMeta((s) => ({ ...s, scale: e.target.value }))}
-                    className="h-7 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 text-[9px] font-semibold text-[color:var(--text)] outline-none"
-                  >
-                    <option>Low-rise</option>
-                    <option>Mid-rise</option>
-                    <option>High-rise</option>
-                    <option>Large-site</option>
-                  </select>
-                  <select
-                    value={meta.constructionType}
-                    onChange={(e) => setMeta((s) => ({ ...s, constructionType: e.target.value }))}
-                    className="h-7 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 text-[9px] font-semibold text-[color:var(--text)] outline-none"
-                  >
-                    <option>RCC</option>
-                    <option>Steel</option>
-                    <option>Hybrid</option>
-                  </select>
-                </div>
-                <input
-                  value={meta.note}
-                  onChange={(e) => setMeta((s) => ({ ...s, note: e.target.value }))}
-                  placeholder={t("notes")}
-                  className="h-7 rounded-lg border border-[color:var(--line)] bg-[color:var(--card)] px-2 text-[10px] font-semibold text-[color:var(--text)] outline-none"
-                />
+            
+            <div className="flex items-center gap-1 rounded-2xl bg-zinc-100/50 dark:bg-zinc-900/50 p-1 backdrop-blur-md">
+              {(['light', 'dark'] as const).map((m) => (
                 <button
-                  type="button"
+                  key={m}
+                  onClick={() => setTheme(m)}
+                  className={`rounded-xl px-4 py-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${
+                    theme === m ? 'bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white shadow-sm' : 'text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  {t(m)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {authUser ? (
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <div className="text-[10px] font-black text-zinc-900 dark:text-white">{authUser.name || authUser.email.split("@")[0]}</div>
+                <div className="text-[8px] font-black uppercase tracking-widest text-zinc-400">{usage?.paid ? 'PRO' : 'FREE'}</div>
+              </div>
+              <Button variant="outline" onClick={signOut} className="h-10 w-10 rounded-2xl border-zinc-200/50 dark:border-zinc-800/50 p-0 hover:bg-red-50 dark:hover:bg-red-950/20">
+                <span className="text-xs italic">Exit</span>
+              </Button>
+            </div>
+          ) : (
+            <Button onClick={() => openAuthModal("login")} className="h-11 rounded-2xl bg-zinc-900 px-8 text-[10px] font-black uppercase tracking-[0.2em] text-white dark:bg-white dark:text-zinc-900">
+              Access
+            </Button>
+          )}
+        </div>
+      </motion.header>
+
+      <main className="mx-auto max-w-[1700px] px-8 py-12">
+        <AnimatePresence mode="wait">
+          {!baseValid ? (
+            <motion.div 
+              key="initial"
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, scale: 0.95 }}
+              variants={containerVariants}
+              className="flex flex-col items-center space-y-12"
+            >
+              <motion.div variants={itemVariants} className="text-center">
+                <Badge variant="secondary" className="mb-6 rounded-full bg-zinc-900/5 dark:bg-white/5 px-6 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500 dark:text-zinc-400">
+                  {iCopy("hero_badge", "Architectural Intelligence Platform")}
+                </Badge>
+                <h2 className="text-6xl font-black tracking-tighter text-zinc-900 dark:text-white sm:text-8xl">
+                  Analyze. Value. <span className="text-zinc-400 dark:text-zinc-600">Iterate.</span>
+                </h2>
+              </motion.div>
+
+              <motion.div 
+                variants={itemVariants}
+                className="group relative h-[450px] w-full max-w-[700px] overflow-hidden rounded-[56px] border-[16px] border-white dark:border-zinc-900 bg-white dark:bg-zinc-900 shadow-[0_50px_120px_-20px_rgba(0,0,0,0.18)] transition-all duration-700 hover:scale-[1.01]"
+              >
+                <button
+                  onClick={() => browseInputRef.current?.click()}
+                  className="flex h-full w-full flex-col items-center justify-center gap-8 bg-zinc-50 dark:bg-zinc-950 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                >
+                  {imageDataUrl ? (
+                    <img src={imageDataUrl} className="h-full w-full object-cover grayscale-[0.1] contrast-[1.05]" alt="Preview" />
+                  ) : (
+                    <>
+                      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900/5 dark:bg-white/5 text-3xl">📸</div>
+                      <div className="space-y-2 text-center">
+                        <div className="text-lg font-black text-zinc-900 dark:text-white">{t("browse")} / {t("live")}</div>
+                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Click to ingest visual data</div>
+                      </div>
+                    </>
+                  )}
+                </button>
+              </motion.div>
+
+              <motion.div variants={itemVariants} className="w-full max-w-[600px] space-y-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="relative">
+                    <input
+                      value={meta.location}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setMeta(s => ({ ...s, location: val }));
+                        setGeoStatus(val ? "manual" : "none");
+                      }}
+                      placeholder={t("location") + "..."}
+                      className="w-full h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-8 text-sm font-bold text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 ring-zinc-900/5 dark:ring-white/5 transition-all"
+                    />
+                    <button 
+                      onClick={requestGps}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 h-8 px-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-transform"
+                    >
+                      {t("gps")}
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['projectType', 'scale'].map((field) => (
+                      <select
+                        key={field}
+                        value={(meta as any)[field]}
+                        onChange={(e) => setMeta(s => ({ ...s, [field]: e.target.value }))}
+                        className="h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 outline-none appearance-none text-center"
+                      >
+                        {field === 'projectType' && ['Residential', 'Commercial', 'Industrial', 'Mixed-use'].map(o => <option key={o} value={o}>{o}</option>)}
+                        {field === 'scale' && ['Low-rise', 'Mid-rise', 'High-rise', 'Large-site'].map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ))}
+                  </div>
+                </div>
+                <Button
                   onClick={runBase}
                   disabled={!imageDataUrl || loading || !canRun}
-                  className="w-full rounded-lg bg-[color:var(--accent)] px-2 py-2 text-center text-[11px] font-semibold text-[color:var(--accent-contrast)] disabled:opacity-40"
+                  className="h-20 w-full rounded-[32px] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-black uppercase tracking-[0.5em] text-sm shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-20"
                 >
-                  {loading ? "..." : t("analyze")}
-                </button>
-                <datalist id="city-list">
-                  {CITY_SUGGESTIONS.map((city) => (
-                    <option key={city} value={city} />
-                  ))}
-                </datalist>
-                <input
-                  ref={browseInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple={false}
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && onPickFile(e.target.files[0])}
-                />
-                <input
-                  ref={liveInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple={false}
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => e.target.files?.[0] && onPickFile(e.target.files[0])}
-                />
-              </div>
-            </Card>
-
-            <Card className="p-4 sm:p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label>Category Matrix</Label>
-                  <Info text="AI selects the closest row from the reference dataset based on the image context." />
-                </div>
-                <Badge>AI</Badge>
-              </div>
-              <div className="mt-3">
-                {baseValid && selectedCategoryRow ? (
-                  <table className="w-full border-collapse text-[10px] text-[color:var(--text)]">
-                    <tbody>
-                      {categoryEntries.map((entry) => (
-                        <tr key={entry.label} className="border-t border-[color:var(--line)]">
-                          <td className="w-[40%] px-2 py-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-                            {entry.label}
-                          </td>
-                          <td className="px-2 py-2 break-words text-[10px] font-semibold text-[color:var(--text)]">{entry.value}</td>
-                        </tr>
+                  {loading ? "Synthesizing Architecture..." : t("analyze")}
+                </Button>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="analyzed"
+              initial="hidden"
+              animate="visible"
+              variants={containerVariants}
+              className="grid grid-cols-1 gap-8 lg:grid-cols-12"
+            >
+              {/* Left Column: Intelligence & Market */}
+              <div className="lg:col-span-3 space-y-8">
+                <div className="space-y-6">
+                  <Label className="pl-2">Strategic Intelligence</Label>
+                  <motion.div variants={itemVariants} className="rounded-[32px] bg-white/40 dark:bg-zinc-900/40 p-6 backdrop-blur-xl border border-zinc-200/30 dark:border-zinc-800/30 shadow-sm">
+                    <div className="mb-5 inline-flex rounded-xl bg-zinc-900 dark:bg-white px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white dark:text-zinc-900">Purchase Strategy</div>
+                    <ul className="space-y-4">
+                      {buyInsights.slice(0, 4).map((item, i) => (
+                        <li key={i} className="flex gap-4 text-[12px] font-bold leading-relaxed text-zinc-600 dark:text-zinc-300">
+                          <span className="text-zinc-400 font-black text-[10px] pt-0.5">0{i+1}</span>
+                          <span>{trAnswer(item)}</span>
+                        </li>
                       ))}
-                    </tbody>
-                  </table>
-                ) : (
-                  <div className="px-2 py-2 text-[color:var(--muted)]">{baseValid ? "No category matrix returned" : t("pending")}</div>
+                    </ul>
+                  </motion.div>
+                  <motion.div variants={itemVariants} className="rounded-[32px] border border-zinc-200/30 dark:border-zinc-800/30 p-6 bg-zinc-50/30 dark:bg-zinc-900/20">
+                    <div className="mb-5 inline-flex rounded-xl bg-zinc-100 dark:bg-zinc-800 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100">Exit Strategy</div>
+                    <ul className="space-y-4">
+                      {sellInsights.slice(0, 4).map((item, i) => (
+                        <li key={i} className="flex gap-4 text-[12px] font-bold leading-relaxed text-zinc-600 dark:text-zinc-300">
+                          <span className="text-zinc-400 font-black text-[10px] pt-0.5">0{i+1}</span>
+                          <span>{trAnswer(item)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
+                </div>
+
+                <div className="space-y-6 pt-4">
+                  <Label className="pl-2">Market Velocity</Label>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <StatCard label="City Growth" value={premium(cityGrowthDisplay)} />
+                    <StatCard label="Land Growth" value={premium(landGrowthDisplay)} />
+                    <StatCard label="Built Growth" value={premium(propertyGrowthDisplay)} />
+                    <StatCard label="Age Index" value={premium(`${Math.round(propertyAgeYears)}y`)} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Center Column: The Subject & Core Metrics */}
+              <div className="lg:col-span-6 space-y-8">
+                <motion.div 
+                  variants={itemVariants}
+                  className="group relative h-[500px] w-full overflow-hidden rounded-[64px] border-[16px] border-white dark:border-zinc-900 bg-white dark:bg-zinc-900 shadow-[0_60px_150px_-30px_rgba(0,0,0,0.25)]"
+                >
+                  <img src={imageDataUrl!} className="h-full w-full object-cover grayscale-[0.05] contrast-[1.02]" alt="Subject" />
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-12 text-white">
+                    {base?.famous_building?.is_famous ? (
+                      <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-2">
+                        <div className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-400">Identified Landmark</div>
+                        <h3 className="text-4xl font-black tracking-tighter">{base.famous_building.name}</h3>
+                        <div className="flex items-center gap-4 text-xs font-bold text-zinc-300">
+                          <span>{base.famous_building.city}, {base.famous_building.country}</span>
+                          <span className="h-1 w-1 rounded-full bg-white/30" />
+                          <span>{base.famous_building.architect}</span>
+                        </div>
+                      </motion.div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="text-[10px] font-black uppercase tracking-[0.5em] text-zinc-400">Analysis Subject</div>
+                        <h3 className="text-4xl font-black tracking-tighter">{meta.location || "Inferred Coordinates"}</h3>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-3">
+                  <StatCard label={t("propertyVal")} value={premium(formatCurrencyRange(currency, minVal, maxVal, rates))} className="sm:col-span-2 py-8" />
+                  <StatCard label="Model ROI" value={premium(roiDisplay)} tag={
+                    <div className="relative h-1.5 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden mt-4">
+                      <motion.div initial={{ width: 0 }} animate={{ width: `${roiMeterValue}%` }} transition={{ duration: 2.5 }} className="h-full bg-zinc-900 dark:bg-white" />
+                    </div>
+                  } className="py-8" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <StatCard label={t("landVal")} value={premium(formatCurrencyRange(currency, minLand, maxLand, rates))} />
+                  <StatCard label={t("projectVal")} value={premium(formatCurrencyRange(currency, minProject, maxProject, rates))} />
+                </div>
+              </div>
+
+              {/* Right Column: Structure & Advanced */}
+              <div className="lg:col-span-3 space-y-8">
+                <div className="space-y-6">
+                  <Label className="pl-2">Structural Matrix</Label>
+                  <motion.div variants={itemVariants} className="rounded-[40px] bg-white/20 dark:bg-zinc-900/20 p-8 backdrop-blur-3xl border border-zinc-200/30 dark:border-zinc-800/30">
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-8">
+                      {categoryEntries.slice(0, 10).map((e) => (
+                        <MatrixEntry key={e.label} label={e.label} value={e.value} />
+                      ))}
+                    </div>
+                  </motion.div>
+                </div>
+
+                <div className="space-y-6">
+                  <Label className="pl-2">Market Context</Label>
+                  <div className="space-y-4">
+                    <StatCard label="Terrain / Soil" value={premium(`${geoFactors?.terrain ?? "-"} / ${geoFactors?.soil_condition ?? "-"}`)} />
+                    <StatCard label="Policy & Zone" value={premium(`${geoFactors?.policy_posture ?? "-"} / ${masterPlanZone}`)} />
+                    <StatCard label="Comparable Units" value={premium(`${Math.round(comparableCount)} Depth`)} />
+                    <StatCard label="Exit Liquidity" value={premium(resaleDisplay)} />
+                  </div>
+                </div>
+
+                <motion.div variants={itemVariants} className="pt-4">
+                  <Button
+                    onClick={runAdvanced}
+                    disabled={advLoading || paywalled}
+                    className="h-20 w-full rounded-[32px] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-black uppercase tracking-[0.4em] text-[11px] shadow-2xl active:scale-95 transition-all"
+                  >
+                    {advLoading ? "Deep Mining..." : "Reveal Risk Signals"}
+                  </Button>
+                </motion.div>
+                
+                {advanced && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="rounded-[32px] bg-emerald-500/5 border border-emerald-500/20 p-6">
+                    <Label className="text-emerald-600 dark:text-emerald-400 mb-4">Risk Recommendations</Label>
+                    <ul className="space-y-3">
+                      {advanced.recommendations.slice(0, 2).map((r, i) => (
+                        <li key={i} className="text-[11px] font-bold leading-relaxed text-emerald-800 dark:text-emerald-200 flex gap-3">
+                          <span className="shrink-0">•</span>
+                          <span>{trAnswer(r)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </motion.div>
                 )}
               </div>
-            </Card>
-          </div>
-
-          <Card className="order-3 p-4 sm:p-5 lg:order-none">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Label>{t("valuationInsights")}</Label>
-                <Info text={iCopy("valuationPanel", "Means: valuation is range-based. Inputs: A-F weighted model + confidence spread. Assumption: no off-book constraints.")} />
-              </div>
-              {paywalled ? <Badge>Locked</Badge> : <Badge>Active</Badge>}
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-end justify-between">
-                <div className="text-[clamp(24px,3.6vw,52px)] font-black leading-none text-[color:var(--text)]">
-                  {baseValid ? premium(roiDisplay) : "—"}
-                </div>
-                <div className="flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">
-                  ROI Meter
-                  <Info text={iCopy("roiMeter", "Means: normalized ROI signal. Inputs: inferred ROI estimate. Assumption: financing is typical.")} />
-                </div>
-              </div>
-              <div className="mt-3">
-                <div className="relative h-2 overflow-hidden rounded-full bg-[color:var(--card-weak)]">
-                  <div className="h-full rounded-full bg-[color:var(--accent)]" style={{ width: `${roiMeterValue}%` }} />
-                  {[0, 33.3, 50, 66.6, 100].map((pos) => (
-                    <span key={pos} className="absolute top-0 h-2 w-[2px] bg-[color:var(--line)]" style={{ left: `${pos}%` }} />
-                  ))}
-                </div>
-                <div className="mt-2 grid grid-cols-5 text-[8px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)] sm:text-[9px]">
-                  <span>-20%</span>
-                  <span>0%</span>
-                  <span>10%</span>
-                  <span>20%</span>
-                  <span>40%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <StatCard
-                label={t("propertyVal")}
-                value={baseValid ? premium(formatCurrencyRange(currency, minVal, maxVal, rates)) : pendingValue}
-                tooltip={iCopy("propertyVal", "Means: total asset value band. Inputs: comps, geo, zoning, age, growth. Assumption: no hidden legal defects.")}
-                tag={<Badge>{CURRENCY_LABELS[currency].name}</Badge>}
-              />
-              <StatCard
-                label={t("landVal")}
-                value={baseValid ? premium(formatCurrencyRange(currency, minLand, maxLand, rates)) : pendingValue}
-                tooltip={iCopy("landVal", "Means: land-only value band. Inputs: land share, zoning, location, land growth. Assumption: title is clean.")}
-                tag={<Badge>{CURRENCY_LABELS[currency].name}</Badge>}
-              />
-              <StatCard
-                label={t("projectVal")}
-                value={baseValid ? premium(formatCurrencyRange(currency, minProject, maxProject, rates)) : pendingValue}
-                tooltip={iCopy("projectVal", "Means: as-is project value band. Inputs: stage completion + land + market factors. Assumption: build quality is standard.")}
-                tag={<Badge>{CURRENCY_LABELS[currency].name}</Badge>}
-              />
-              <StatCard
-                label="Policy Focus"
-                value={baseValid ? premium(geoFactors?.policy_focus ?? "-") : pendingValue}
-                tooltip={iCopy("policyFocus", "Means: planning intent driver. Inputs: policy focus + zoning context. Assumption: no abrupt policy shift.")}
-              />
-            </div>
-
-            <div className="mt-4">
-              <div className="flex items-center gap-2">
-                <Label>Market Performance</Label>
-                <Info text={iCopy("marketPerformance", "Means: momentum diagnostics. Inputs: growth, age, resale, ROI. Assumption: macro conditions stay neutral.")} />
-              </div>
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <StatCard
-                  label="5Y City Growth"
-                  value={baseValid ? premium(cityGrowthDisplay) : pendingValue}
-                  tooltip={iCopy("cityGrowth", "Means: top-down momentum. Inputs: city 5Y growth estimate. Assumption: trend remains stable.")}
-                />
-                <StatCard
-                  label="Property Growth"
-                  value={baseValid ? premium(propertyGrowthDisplay) : pendingValue}
-                  tooltip={iCopy("propertyGrowth", "Means: built-asset trend. Inputs: local property growth estimate. Assumption: sample is representative.")}
-                />
-                <StatCard
-                  label="Land Growth"
-                  value={baseValid ? premium(landGrowthDisplay) : pendingValue}
-                  tooltip={iCopy("landGrowth", "Means: land demand trend. Inputs: local land growth estimate. Assumption: supply remains normal.")}
-                />
-                <StatCard
-                  label="Property Age"
-                  value={baseValid ? premium(`${Math.round(propertyAgeYears)} yrs`) : pendingValue}
-                  tooltip={iCopy("propertyAge", "Means: depreciation pressure. Inputs: inferred age + condition. Assumption: maintenance is average.")}
-                />
-                <StatCard
-                  label="Resale Value"
-                  value={baseValid ? premium(resaleDisplay) : pendingValue}
-                  tooltip={iCopy("resaleValue", "Means: exit strength index. Inputs: age, liquidity, demand fit. Assumption: no distress sale required.")}
-                />
-                <StatCard
-                  label="ROI (Est.)"
-                  value={baseValid ? premium(roiDisplay) : pendingValue}
-                  tooltip={iCopy("roiEst", "Means: return potential estimate. Inputs: growth, liquidity, policy, comparables. Assumption: entry cost is market-aligned.")}
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <Label>{t("riskReveal")}</Label>
-              <Button
-                onClick={runAdvanced}
-                disabled={!baseValid || advLoading || paywalled}
-                className={`mt-2 w-full ${baseValid && !paywalled ? "" : "opacity-60"}`}
-              >
-                {advLoading ? "Running" : t("revealRisks")}
-              </Button>
-            </div>
-
-            <details className="mt-4">
-              <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.2em] text-[color:var(--muted)]">{t("assumptions")}</summary>
-              <ul className="mt-2 list-none space-y-1 pl-0 text-xs font-semibold text-[color:var(--muted)]">
-                <li>{t("photoEstimate")}</li>
-                <li>{t("indicative")}</li>
-                {(base?.notes ?? []).slice(0, 4).map((note, i) => (
-                  <li key={`note-${i}`} className="whitespace-normal break-normal [overflow-wrap:break-word]">
-                    {trAnswer(note)}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          </Card>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
+
 
       <AuthModal
         isOpen={showAuthModal}
@@ -2212,7 +2080,9 @@ export default function Page() {
         onRegister={handleRegister}
         onAccessCode={handleAccessCode}
       />
+      
+      <input ref={browseInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onPickFile(e.target.files[0])} />
+      <input ref={liveInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => e.target.files?.[0] && onPickFile(e.target.files[0])} />
     </div>
   );
 }
-
