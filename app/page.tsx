@@ -1207,8 +1207,8 @@ export default function Page() {
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState({
     location: "",
-    projectType: "Select",
-    scale: "Select",
+    projectType: "",
+    scale: "",
     constructionType: "RCC",
     note: ""
   });
@@ -1907,7 +1907,7 @@ export default function Page() {
                         setMeta(s => ({ ...s, location: val }));
                         setGeoStatus(val ? "manual" : "none");
                       }}
-                      placeholder="Enter location..."
+                      placeholder={t("location") + "..."}
                       className="w-full h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-8 text-sm font-bold text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-900/20 dark:focus:ring-white/20 transition-all"
                     />
                     <button 
