@@ -1207,8 +1207,8 @@ export default function Page() {
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [meta, setMeta] = useState({
     location: "",
-    projectType: "Residential",
-    scale: "Low-rise",
+    projectType: "Select",
+    scale: "Select",
     constructionType: "RCC",
     note: ""
   });
@@ -1788,7 +1788,7 @@ export default function Page() {
         <div className="flex items-center gap-6">
           <div className="group cursor-default">
             <h1 className="text-3xl font-black tracking-tighter text-zinc-900 dark:text-white transition-all">Valuator</h1>
-            <div className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-400 dark:text-zinc-500">Builtattic</div>
+        
           </div>
           {errorShort && (
             <Badge variant="outline" className="border-red-500/30 text-red-500 bg-red-500/5 backdrop-blur-md px-3 py-1">
@@ -1865,29 +1865,39 @@ export default function Page() {
                 </h2>
               </motion.div>
 
-              <motion.div 
+             <motion.div 
                 variants={itemVariants}
-                className="group relative h-[450px] w-full max-w-[700px] overflow-hidden rounded-[56px] border-[16px] border-white dark:border-zinc-900 bg-white dark:bg-zinc-900 shadow-[0_50px_120px_-20px_rgba(0,0,0,0.18)] transition-all duration-700 hover:scale-[1.01]"
+                className="grid gap-12 lg:grid-cols-2 items-start"
               >
-                <button
-                  onClick={() => browseInputRef.current?.click()}
-                  className="flex h-full w-full flex-col items-center justify-center gap-8 bg-zinc-50 dark:bg-zinc-950 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                {/* Left: Image Drop Card */}
+                <div 
+                  className="group relative h-[500px] w-full overflow-hidden rounded-[56px] border-[16px] border-white dark:border-zinc-900 bg-white dark:bg-zinc-900 shadow-[0_50px_120px_-20px_rgba(0,0,0,0.18)] transition-all duration-700 hover:scale-[1.01]"
                 >
-                  {imageDataUrl ? (
-                    <img src={imageDataUrl} className="h-full w-full object-cover grayscale-[0.1] contrast-[1.05]" alt="Preview" />
-                  ) : (
-                    <>
-                      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900/5 dark:bg-white/5 text-3xl">📸</div>
-                      <div className="space-y-2 text-center">
-                        <div className="text-lg font-black text-zinc-900 dark:text-white">{t("browse")} / {t("live")}</div>
-                        <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Click to ingest visual data</div>
-                      </div>
-                    </>
-                  )}
-                </button>
-              </motion.div>
+                  <button
+                    onClick={() => browseInputRef.current?.click()}
+                    className="flex h-full w-full flex-col items-center justify-center gap-8 bg-zinc-50 dark:bg-zinc-950 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                  >
+                    {imageDataUrl ? (
+                      <img src={imageDataUrl} className="h-full w-full object-cover grayscale-[0.1] contrast-[1.05]" alt="Preview" />
+                    ) : (
+                      <>
+                        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-900/5 dark:bg-white/5 text-3xl">📸</div>
+                        <div className="space-y-2 text-center">
+                          <div className="text-lg font-black text-zinc-900 dark:text-white">{t("browse")} / {t("live")}</div>
+                          <div className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-400">Click to ingest visual data</div>
+                        </div>
+                      </>
+                    )}
+                  </button>
+                </div>
 
-              <motion.div variants={itemVariants} className="w-full max-w-[600px] space-y-6">
+              
+                <div className="flex flex-col justify-center space-y-6 h-[500px]">
+                  <div className="mb-4">
+                    <h3 className="text-2xl font-black text-zinc-900 dark:text-white mb-2">Architectural Analysis</h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">Upload a property image and provide construction details for AI-powered valuation and risk analysis.</p>
+                  </div>
+    
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="relative">
                     <input
@@ -1897,8 +1907,8 @@ export default function Page() {
                         setMeta(s => ({ ...s, location: val }));
                         setGeoStatus(val ? "manual" : "none");
                       }}
-                      placeholder={t("location") + "..."}
-                      className="w-full h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-8 text-sm font-bold text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 ring-zinc-900/5 dark:ring-white/5 transition-all"
+                      placeholder="Enter location..."
+                      className="w-full h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-8 text-sm font-bold text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 outline-none focus:ring-2 focus:ring-zinc-900/20 dark:focus:ring-white/20 transition-all"
                     />
                     <button 
                       onClick={requestGps}
@@ -1911,10 +1921,11 @@ export default function Page() {
                     {['projectType', 'scale'].map((field) => (
                       <select
                         key={field}
-                        value={(meta as any)[field]}
+                        value={(meta as any)[field] || ''}
                         onChange={(e) => setMeta(s => ({ ...s, [field]: e.target.value }))}
-                        className="h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-4 text-[10px] font-black uppercase tracking-widest text-zinc-900 dark:text-zinc-100 outline-none appearance-none text-center"
+                        className="h-16 rounded-[24px] bg-white/50 dark:bg-zinc-900/50 border border-zinc-200/50 dark:border-zinc-800/50 px-4 text-sm font-bold text-zinc-900 dark:text-zinc-100 outline-none appearance-none focus:ring-2 focus:ring-zinc-900/20 dark:focus:ring-white/20 transition-all cursor-pointer [&>option]:bg-white [&>option]:dark:bg-zinc-900 [&>option]:text-zinc-900 [&>option]:dark:text-white"
                       >
+                        <option value="">{field === 'projectType' ? 'Select Type' : 'Select Scale'}</option>
                         {field === 'projectType' && ['Residential', 'Commercial', 'Industrial', 'Mixed-use'].map(o => <option key={o} value={o}>{o}</option>)}
                         {field === 'scale' && ['Low-rise', 'Mid-rise', 'High-rise', 'Large-site'].map(o => <option key={o} value={o}>{o}</option>)}
                       </select>
@@ -1927,7 +1938,7 @@ export default function Page() {
                   className="h-20 w-full rounded-[32px] bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-black uppercase tracking-[0.5em] text-sm shadow-[0_20px_50px_-10px_rgba(0,0,0,0.3)] hover:scale-[1.01] active:scale-[0.98] transition-all disabled:opacity-20"
                 >
                   {loading ? "Synthesizing Architecture..." : t("analyze")}
-                </Button>
+                </Button> </div>
               </motion.div>
             </motion.div>
           ) : (
